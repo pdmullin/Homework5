@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/inotify.h>
+
 
 int main(int argc, char* argv[]){
 
@@ -31,6 +33,8 @@ int main(int argc, char* argv[]){
 		}
 	}
 
+	printf("%s spawned this process.\n", argv[0]);
+
 	if (enable_h == true){
 		printf("----------------------------------------------------------\n");
 		printf("The purpose of this program is to create file backups.\n");
@@ -42,8 +46,46 @@ int main(int argc, char* argv[]){
 		printf("-m to disable meta-data duplication.\n");
 		printf("-t to append duplication time to the backup file name.\n");
 		printf("----------------------------------------------------------\n");
+		return EXIT_SUCCESS;
 	}
 
-	printf("%s spawned this process.\n", argv[0]);
+	int fd = inotify_init();
+   if (fd == -1){
+   	perror("inotify_init");
+   	return EXIT_FAILURE;
+   }
+
+	int wd = inotify_add_watch(fd, "/etc/passwd", IN_MODIFY | IN_ACCESS);
+    if (wd == -1){
+   	 perror("inotify_add_watch");
+   	return EXIT_FAILURE;
+   }
+
+   int x;
+   char* p;
+   const size_t buf_len = 500;
+   char buf[buf_len];
+
+   while (1) {
+      x = read(fd, buf, buf_len);
+      if(fd == -1){
+      	perror("read");
+      	return EXIT_FAILURE;
+      }
+
+      for(p = buf; p < buf + x;) {
+         struct inotify_event* event = (struct inotify_event*)p;
+        
+         if((event->mask & IN_ACCESS) != 0) {
+            printf("file has been accessed\n");
+         }
+         
+         if((event->mask & IN_MODIFY) != 0) {
+            printf("file has been modified\n");
+         }
+         p += sizeof(struct inotify_event) + event->len;
+
+       }
+   }
 	return EXIT_SUCCESS;
 }
