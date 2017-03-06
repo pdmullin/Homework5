@@ -44,6 +44,7 @@ int main(int argc, char* argv[]){
 		printf("The purpose of this program is to create file backups.\n");
 		printf("The program will monitor the file until it is deleted or program terminates.\n");
 		printf("Every time the file changes the program will create a perfect backup.\n");
+		printf("The program will accept a file name as an argument.\n");
 		printf("-h option to print this information.\n");
 		printf("-d ARG to customize backup location, ARG is path to desired location.\n");
 		printf("If no path is given for -d program will default location to the home directory.\n");
@@ -52,11 +53,6 @@ int main(int argc, char* argv[]){
 		printf("----------------------------------------------------------\n");
 		return EXIT_SUCCESS;
 	}
-
-      // if (enable_d == true) {
-          
-      // }
-      
        
 
    int fd = inotify_init();
@@ -65,12 +61,12 @@ int main(int argc, char* argv[]){
    	return EXIT_FAILURE;
    }
 
-    int wd = inotify_add_watch(fd, "/home/jamesperra/test.txt", IN_MODIFY);
+    int wd = inotify_add_watch(fd, "/home/patrickmullinix/test.txt", IN_MODIFY);
     if (wd == -1){
    	 perror("inotify_add_watch");
    	return EXIT_FAILURE;
    }
-   int input = open("/home/jamesperra/test.txt", O_RDONLY);
+   int input = open("/home/patrickmullinix/test.txt", O_RDONLY);
    ssize_t b_in, b_out;
 
    int x;
@@ -93,10 +89,20 @@ int main(int argc, char* argv[]){
         
          if((event->mask & IN_MODIFY) != 0) {
             if (enable_d == true) {
+            	if(enable_t == true){
+
+            	}
+            	else{
                  snprintf(str, 100, "%stest_rev%d.txt", argv[optind - 1], count);
+            	}
             }
             else {
-                 snprintf(str,100, "/home/jamesperra/test_rev%d.txt", count);
+            	if(enable_t == true){
+
+            	}
+            	else{
+                 snprintf(str,100, "/home/patrickmullinix/test_rev%d.txt", count);
+            	}
             }
             int output = open(str, O_WRONLY | O_CREAT,0644);
             printf("file has been modified\n");
