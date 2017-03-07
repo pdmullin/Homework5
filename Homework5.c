@@ -5,12 +5,16 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/inotify.h>
+#include <sys/types.h>
+#include <fcntl.h>
+
 
 
 int main(int argc, char* argv[]){
 
 	int opt = 0;
 	bool enable_h = false, enable_d = false, enable_m = false, enable_t = false;
+        const char* loc;
 
 	while ((opt = getopt (argc, argv, ":d:hmt")) != -1){ 
 		switch (opt){
@@ -49,22 +53,33 @@ int main(int argc, char* argv[]){
 		return EXIT_SUCCESS;
 	}
 
-	int fd = inotify_init();
+      // if (enable_d == true) {
+          
+      // }
+      
+       
+
+   int fd = inotify_init();
    if (fd == -1){
    	perror("inotify_init");
    	return EXIT_FAILURE;
    }
 
-	int wd = inotify_add_watch(fd, "/etc/passwd", IN_MODIFY | IN_ACCESS);
+    int wd = inotify_add_watch(fd, "/home/jamesperra/test.txt", IN_MODIFY);
     if (wd == -1){
    	 perror("inotify_add_watch");
    	return EXIT_FAILURE;
    }
+   int input = open("/home/jamesperra/test.txt", O_RDONLY);
+   ssize_t b_in, b_out;
 
    int x;
    char* p;
    const size_t buf_len = 500;
    char buf[buf_len];
+   int count = 0;
+   char str[100];
+   
 
    while (1) {
       x = read(fd, buf, buf_len);
@@ -76,12 +91,19 @@ int main(int argc, char* argv[]){
       for(p = buf; p < buf + x;) {
          struct inotify_event* event = (struct inotify_event*)p;
         
-         if((event->mask & IN_ACCESS) != 0) {
-            printf("file has been accessed\n");
-         }
-         
          if((event->mask & IN_MODIFY) != 0) {
+            if (enable_d == true) {
+                 snprintf(str, 100, "%stest_rev%d.txt", argv[optind - 1], count);
+            }
+            else {
+                 snprintf(str,100, "/home/jamesperra/test_rev%d.txt", count);
+            }
+            int output = open(str, O_WRONLY | O_CREAT,0644);
             printf("file has been modified\n");
+            count += 1;
+            while ((b_in = read(input, &buf,buf_len)) > 0) {
+               b_out = write(output, &buf, (ssize_t) b_in);
+            }
          }
          p += sizeof(struct inotify_event) + event->len;
 
