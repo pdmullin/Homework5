@@ -154,14 +154,22 @@ int main(int argc, char* argv[]){
 
             if (enable_m == false) {
                   if(stat(str,&fStatO) < 0){
-	                 perror("stat");
+	                  perror("stat");
                   return EXIT_FAILURE;
               }
                   struct utimbuf t;//stackoverflow.com/questions/2185338/how-to-set-the-modification-time-of-a-file-programmatically
                   t.actime = fStatI.st_atime;
                   t.modtime = fStatI.st_mtime;   
                   utime(str, &t);
-                  chown(str, fStatI.st_uid, fStatI.st_gid);              
+                  if((utime(str, &t)) < 0){
+                    perror("utime");
+                    return EXIT_FAILURE;
+                  }
+                  chown(str, fStatI.st_uid, fStatI.st_gid);
+                  if((chown(str, fStatI.st_uid, fStatI.st_gid)) < 0){
+                    perror("chown");
+                    return EXIT_FAILURE;
+                  }              
             }
             printf("file has been modified\n");
             count += 1;
