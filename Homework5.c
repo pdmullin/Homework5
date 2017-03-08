@@ -10,6 +10,7 @@
 #include <time.h>
 #include <sys/stat.h>
 #include <utime.h>
+#include <libgen.h>
 
 
 
@@ -26,7 +27,7 @@ int main(int argc, char* argv[]){
 			enable_h = true;
 			break;
 			case 'd':
-                        arg1 = optarg;
+      arg1 = optarg;
 			enable_d = true;
 			break;
 			case 'm':
@@ -42,7 +43,13 @@ int main(int argc, char* argv[]){
 		}
 	}
 
+  char * file = argv[optind];
+  char * name = basename(file);
+
+  if (enable_h == false && enable_t == false && enable_d == false && enable_m == false && file == NULL){
 	printf("%s spawned this process.\n", argv[0]);
+  return EXIT_SUCCESS;
+}
 
 	if (enable_h == true){
 		printf("----------------------------------------------------------\n");
@@ -52,7 +59,7 @@ int main(int argc, char* argv[]){
 		printf("The program will accept a file name as an argument.\n");
 		printf("-h option to print this information.\n");
 		printf("-d ARG to customize backup location, ARG is path to desired location.\n");
-		printf("If no path is given for -d program will default location to the home directory.\n");
+		printf("If no path is given for -d program will default location to original file directory.\n");
 		printf("-m to disable meta-data duplication.\n");
 		printf("-t to append duplication time to the backup file name.\n");
 		printf("----------------------------------------------------------\n");
@@ -66,7 +73,7 @@ int main(int argc, char* argv[]){
    	return EXIT_FAILURE;
    }
 
-   int wd = inotify_add_watch(fd, "/home/jamesperra/test.txt", IN_MODIFY);
+   int wd = inotify_add_watch(fd, file, IN_MODIFY);
    if (wd == -1){
    	 perror("inotify_add_watch");
    	 return EXIT_FAILURE;
@@ -77,9 +84,10 @@ int main(int argc, char* argv[]){
    char* permissions;
    struct stat fStatI;
    struct stat fStatO;
-   if(stat("/home/jamesperra/test.txt",&fStatI) < 0)
-	perror("stat");
-    
+   if(stat(file,&fStatI) < 0){
+	     perror("stat");
+       return EXIT_FAILURE;
+    }
     
    int x;
    char* p;
@@ -96,7 +104,7 @@ int main(int argc, char* argv[]){
       	return EXIT_FAILURE;
       }
 
-      if (access("/home/jamesperra/test.txt", F_OK) == -1) {//stackoverflow.com/questions/230062/whats-the-best-way-to-check-if-a-file-exists-in-c-cross-platform
+      if (access(file, F_OK) == -1) {//stackoverflow.com/questions/230062/whats-the-best-way-to-check-if-a-file-exists-in-c-cross-platform
             perror("File Deleted");
             return EXIT_FAILURE;
       }
@@ -108,7 +116,7 @@ int main(int argc, char* argv[]){
         
          if((event->mask & IN_MODIFY) != 0) {
             if (enable_d == true && enable_t == false) {
-                 snprintf(str, 100, "%stest_rev%d.txt", arg1, count);
+                 snprintf(str, 100, "%s%s_rev%d", arg1, name, count);
             	
             }
             
@@ -117,7 +125,7 @@ int main(int argc, char* argv[]){
                  struct tm tm = *localtime(&t);
                  char date[100];
                  sprintf(date, "%d%d%d%d%d%d", tm.tm_year+1900,tm.tm_mon+1,tm.tm_mday,tm.tm_hour,       tm.tm_min, tm.tm_sec);
-                 snprintf(str, 100, "/home/jamesperra/test_%s.txt", date);
+                 snprintf(str, 100, "%s_%s", file, date);
             }
  
             else if (enable_t == true && enable_d == true){
@@ -125,17 +133,30 @@ int main(int argc, char* argv[]){
                 struct tm tm = *localtime(&t);
                 char date[100];
                 sprintf(date, "%d%d%d%d%d%d", tm.tm_year+1900,tm.tm_mon+1,tm.tm_mday,tm.tm_hour,       tm.tm_min, tm.tm_sec);
-                snprintf(str, 100, "%stest_%s.txt", arg1, date);
+                snprintf(str, 100, "%s%s_%s", arg1, name, date);
             }
   
             else{
-                 snprintf(str,100, "/home/jamesperra/test_rev%d.txt", count);
+                 snprintf(str,100, "%s_rev%d", file, count);
             }
-            input = open("/home/jamesperra/test.txt", O_RDONLY);
+            input = open(file, O_RDONLY);
+            if ((open(file, O_RDONLY)) < 0){
+              perror("open");
+              return EXIT_FAILURE;
+            }
+
             output = open(str, O_WRONLY | O_CREAT,0644);
+            if((open(file, O_RDONLY)) < 0){
+              perror("open");
+              return EXIT_FAILURE;
+            }
+
+
             if (enable_m == false) {
-                  if(stat(str,&fStatO) < 0)
-	              perror("stat");
+                  if(stat(str,&fStatO) < 0){
+	                 perror("stat");
+                  return EXIT_FAILURE;
+              }
                   struct utimbuf t;//stackoverflow.com/questions/2185338/how-to-set-the-modification-time-of-a-file-programmatically
                   t.actime = fStatI.st_atime;
                   t.modtime = fStatI.st_mtime;   
@@ -145,10 +166,26 @@ int main(int argc, char* argv[]){
             printf("file has been modified\n");
             count += 1;
             while ((b_in = read(input, &buf,buf_len)) > 0) {//techytalk.info/linux-system-programming-open-file-read-file-and-write-file/
+                if((read(input, &buf,buf_len)) < 0){
+                  perror("read");
+                  return EXIT_FAILURE;
+                }
                 b_out = write(output, &buf, (ssize_t) b_in);
+                if((write(output, &buf, (ssize_t) b_in)) < 0){
+                  perror("write");
+                  return EXIT_FAILURE;
+                }
             }
             close (input);
+            if(close(input) < 0){
+              perror("close");
+              return EXIT_FAILURE;
+            }
             close (output);
+            if(close(output) < 0){
+              perror("close");
+              return EXIT_FAILURE;
+            }
 
          }
          p += sizeof(struct inotify_event) + event->len;
