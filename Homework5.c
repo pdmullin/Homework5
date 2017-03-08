@@ -7,6 +7,9 @@
 #include <sys/inotify.h>
 #include <sys/types.h>
 #include <fcntl.h>
+#include <time.h>
+#include <sys/stat.h>
+#include <utime.h>
 
 
 
@@ -14,7 +17,8 @@ int main(int argc, char* argv[]){
 
 	int opt = 0;
 	bool enable_h = false, enable_d = false, enable_m = false, enable_t = false;
-        const char* loc;
+        char* arg1;
+        
 
 	while ((opt = getopt (argc, argv, ":d:hmt")) != -1){ 
 		switch (opt){
@@ -22,6 +26,7 @@ int main(int argc, char* argv[]){
 			enable_h = true;
 			break;
 			case 'd':
+                        arg1 = optarg;
 			enable_d = true;
 			break;
 			case 'm':
@@ -61,14 +66,21 @@ int main(int argc, char* argv[]){
    	return EXIT_FAILURE;
    }
 
-    int wd = inotify_add_watch(fd, "/home/patrickmullinix/test.txt", IN_MODIFY);
-    if (wd == -1){
+   int wd = inotify_add_watch(fd, "/home/jamesperra/test.txt", IN_MODIFY);
+   if (wd == -1){
    	 perror("inotify_add_watch");
-   	return EXIT_FAILURE;
+   	 return EXIT_FAILURE;
    }
-   int input = open("/home/patrickmullinix/test.txt", O_RDONLY);
+   int input;
+   int output;
    ssize_t b_in, b_out;
-
+   char* permissions;
+   struct stat fStatI;
+   struct stat fStatO;
+   if(stat("/home/jamesperra/test.txt",&fStatI) < 0)
+	perror("stat");
+    
+    
    int x;
    char* p;
    const size_t buf_len = 500;
@@ -84,32 +96,60 @@ int main(int argc, char* argv[]){
       	return EXIT_FAILURE;
       }
 
+      if (access("/home/jamesperra/test.txt", F_OK) == -1) {//stackoverflow.com/questions/230062/whats-the-best-way-to-check-if-a-file-exists-in-c-cross-platform
+            perror("File Deleted");
+            return EXIT_FAILURE;
+      }
+
       for(p = buf; p < buf + x;) {
          struct inotify_event* event = (struct inotify_event*)p;
+
+         
         
          if((event->mask & IN_MODIFY) != 0) {
-            if (enable_d == true) {
-            	if(enable_t == true){
-
-            	}
-            	else{
-                 snprintf(str, 100, "%stest_rev%d.txt", argv[optind - 1], count);
-            	}
+            if (enable_d == true && enable_t == false) {
+                 snprintf(str, 100, "%stest_rev%d.txt", arg1, count);
+            	
             }
-            else {
-            	if(enable_t == true){
-
-            	}
-            	else{
-                 snprintf(str,100, "/home/patrickmullinix/test_rev%d.txt", count);
-            	}
+            
+            else if (enable_t == true && enable_d == false) {
+                 time_t t = time(NULL);
+                 struct tm tm = *localtime(&t);
+                 char date[100];
+                 sprintf(date, "%d%d%d%d%d%d", tm.tm_year+1900,tm.tm_mon+1,tm.tm_mday,tm.tm_hour,       tm.tm_min, tm.tm_sec);
+                 snprintf(str, 100, "/home/jamesperra/test_%s.txt", date);
             }
-            int output = open(str, O_WRONLY | O_CREAT,0644);
+ 
+            else if (enable_t == true && enable_d == true){
+                time_t t = time(NULL);
+                struct tm tm = *localtime(&t);
+                char date[100];
+                sprintf(date, "%d%d%d%d%d%d", tm.tm_year+1900,tm.tm_mon+1,tm.tm_mday,tm.tm_hour,       tm.tm_min, tm.tm_sec);
+                snprintf(str, 100, "%stest_%s.txt", arg1, date);
+            }
+  
+            else{
+                 snprintf(str,100, "/home/jamesperra/test_rev%d.txt", count);
+            }
+            input = open("/home/jamesperra/test.txt", O_RDONLY);
+            output = open(str, O_WRONLY | O_CREAT,0644);
+            if (enable_m == false) {
+                  if(stat(str,&fStatO) < 0)
+	              perror("stat");
+                  struct utimbuf t;//stackoverflow.com/questions/2185338/how-to-set-the-modification-time-of-a-file-programmatically
+                  t.actime = fStatI.st_atime;
+                  t.modtime = fStatI.st_mtime;   
+                  utime(str, &t);
+                  chown(str, fStatI.st_uid, fStatI.st_gid);              
+            }
             printf("file has been modified\n");
             count += 1;
-            while ((b_in = read(input, &buf,buf_len)) > 0) {
-               b_out = write(output, &buf, (ssize_t) b_in);
+            while ((b_in = read(input, &buf,buf_len)) > 0) {//techytalk.info/linux-system-programming-open-file-read-file-and-write-file/
+                b_out = write(output, &buf, (ssize_t) b_in);
             }
+            close (input);
+            close (output);
+
          }
          p += sizeof(struct inotify_event) + event->len;
 
