@@ -16,9 +16,9 @@
 
 int main(int argc, char* argv[]){
 
-	int opt = 0;
-	bool enable_h = false, enable_d = false, enable_m = false, enable_t = false;
-        char* arg1;
+   int opt = 0;
+   bool enable_h = false, enable_d = false, enable_m = false, enable_t = false;
+   char* arg1;
         
 
 	while ((opt = getopt (argc, argv, ":d:hmt")) != -1){ 
@@ -27,7 +27,7 @@ int main(int argc, char* argv[]){
 			enable_h = true;
 			break;
 			case 'd':
-      arg1 = optarg;
+                        arg1 = optarg;
 			enable_d = true;
 			break;
 			case 'm':
@@ -43,15 +43,15 @@ int main(int argc, char* argv[]){
 		}
 	}
 
-  char * file = argv[optind];
-  char * name = basename(file);
+   char * file = argv[optind];
+   char * name = basename(file);
 
-  if (enable_h == false && enable_t == false && enable_d == false && enable_m == false && file == NULL){
+   if (enable_h == false && enable_t == false && enable_d == false && enable_m == false && file == NULL){
 	printf("%s spawned this process.\n", argv[0]);
-  return EXIT_SUCCESS;
-}
+        return EXIT_SUCCESS;
+   }
 
-	if (enable_h == true){
+   if (enable_h == true){
 		printf("----------------------------------------------------------\n");
 		printf("The purpose of this program is to create file backups.\n");
 		printf("The program will monitor the file until it is deleted or program terminates.\n");
@@ -64,7 +64,15 @@ int main(int argc, char* argv[]){
 		printf("-t to append duplication time to the backup file name.\n");
 		printf("----------------------------------------------------------\n");
 		return EXIT_SUCCESS;
-	}
+     }
+
+   if (enable_d == true) {
+      printf("Backups copied to %s\n", arg1);
+   }
+
+   else {
+      printf("Backups copied to same directory as original file\n");
+   }
        
 
    int fd = inotify_init();
@@ -116,7 +124,7 @@ int main(int argc, char* argv[]){
         
          if((event->mask & IN_MODIFY) != 0) {
             if (enable_d == true && enable_t == false) {
-                 snprintf(str, 100, "%s%s_rev%d", arg1, name, count);
+                 snprintf(str, 100, "%s/%s_rev%d", arg1, name, count);
             	
             }
             
@@ -133,12 +141,12 @@ int main(int argc, char* argv[]){
                 struct tm tm = *localtime(&t);
                 char date[100];
                 sprintf(date, "%d%d%d%d%d%d", tm.tm_year+1900,tm.tm_mon+1,tm.tm_mday,tm.tm_hour,       tm.tm_min, tm.tm_sec);
-                snprintf(str, 100, "%s%s_%s", arg1, name, date);
-            }
+                snprintf(str, 100, "%s/%s_%s", arg1, name, date);
+             }
   
             else{
                  snprintf(str,100, "%s_rev%d", file, count);
-            }
+             }
             input = open(file, O_RDONLY);
             if ((open(file, O_RDONLY)) < 0){
               perror("open");
@@ -156,7 +164,7 @@ int main(int argc, char* argv[]){
                   if(stat(str,&fStatO) < 0){
 	                  perror("stat");
                   return EXIT_FAILURE;
-              }
+                  }
                   struct utimbuf t;//stackoverflow.com/questions/2185338/how-to-set-the-modification-time-of-a-file-programmatically
                   t.actime = fStatI.st_atime;
                   t.modtime = fStatI.st_mtime;   
@@ -178,25 +186,17 @@ int main(int argc, char* argv[]){
                   perror("read");
                   return EXIT_FAILURE;
                 }
-                b_out = write(output, &buf, (ssize_t) b_in);
                 if((write(output, &buf, (ssize_t) b_in)) < 0){
                   perror("write");
                   return EXIT_FAILURE;
                 }
-            }
+             }
             close (input);
-            if(close(input) < 0){
-              perror("close");
-              return EXIT_FAILURE;
-            }
             close (output);
-            if(close(output) < 0){
-              perror("close");
-              return EXIT_FAILURE;
-            }
 
          }
          p += sizeof(struct inotify_event) + event->len;
+         
 
        }
    }
